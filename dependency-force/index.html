@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dependency Force</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "3d-force-graph": "https://cdn.jsdelivr.net/npm/3d-force-graph/+esm",
+      "yaml": "https://cdn.jsdelivr.net/npm/yaml/+esm"
+    }
+  }
+  </script>
+  <style>
+  body {
+    margin: 0;
+  }
+  #selector {
+    position: fixed;
+    inset-block-start: 8px;
+    inset-inline-start: 8px;
+    z-index: 1;
+    appearance: none;
+    padding: 8px 16px;
+    border: none;
+  }
+  </style>
+</head>
+<body>
+  <button id="selector">Select Lockfile...</button>
+  <main id="container"></main>
+  <script type="module">
+  import ForceGraph3D from '3d-force-graph'
+  import * as YAML from 'yaml'
+
+  function readFile(file) {
+    const reader = new FileReader()
+    return new Promise((resolve, reject) => {
+      reader.addEventListener('load', () => {
+        resolve(reader.result)
+      }, { once: true })
+      reader.addEventListener('error', () => {
+        reject(reader.error)
+      }, { once: true })
+      reader.readAsText(file)
+    })
+  }
+
+  async function selectLockfile() {
+    const [handle] = await showOpenFilePicker({
+      excludeAcceptAllOption: true,
+      multiple: false,
+      types: [
+        {
+          description: 'Lockfile',
+          accept: {
+            'application/json': ['.json'],
+            'application/yaml': ['.yaml'],
+          }
+        }
+      ]
+    })
+    const file = await handle.getFile()
+    if (!['pnpm-lock.yaml', 'package-lock.json'].includes(file.name)) {
+      throw new Error('Only one lockfile of npm or pnpm is allowed.')
+    }
+    const data = await readFile(file)
+    const kind = file.name.endsWith('.yaml') ? 'yaml' : 'json'
+    return {
+      name: file.name,
+      type: kind === 'yaml' ? 'pnpm' : 'npm',
+      data: kind === 'yaml' ? YAML.parse(data) : JSON.parse(data)
+    }
+  }
+
+  function joinPath(context, relative) {
+    return new URL(relative, new URL((context ?? '') + '/', location.origin)).pathname.slice(1) || '.'
+  }
+
+  function resolvePnpmLockfile(data) {
+    const idOfKey = key => {
+      return key.startsWith('/') ? key.slice(1) : key
+    }
+    const idOfEntry = (id, version, context) => {
+      if (version.startsWith('link:')) return joinPath(context, version.slice('link:'.length))
+      return /^\d/.test(version) ? `${id}@${version}` : idOfKey(version)
+    }
+    const importers = data.importers ?? { '.': data }
+    const links = [
+      ...Object.entries(importers).flatMap(([key, importer]) => {
+        return [
+          ...Object.entries(importer.dependencies ?? {}),
+          ...Object.entries(importer.devDependencies ?? {}),
+        ].map(([id, metadata]) => {
+          return {
+            source: key,
+            target: idOfEntry(id, metadata.version, key),
+          }
+        })
+      }),
+      ...Object.entries(data.packages).flatMap(([key, pkg]) => {
+        const name = idOfKey(key)
+        return Object.entries(pkg.dependencies ?? {}).map(([id, version]) => {
+          return {
+            source: name,
+            target: idOfEntry(id, version),
+          }
+        })
+      }),
+    ]
+    const cache = new Map()
+    const getValue = id => {
+      if (cache.has(id)) return cache.get(id)
+      const value = links.filter(link => link.source === id)
+        .reduce((total, link) => total + getValue(link.id), 1)
+      cache.set(id, value)
+      return value
+    }
+    const nodes = [
+      ...Object.keys(importers).map(id => ({ id, type: 'importer' })),
+      ...Object.keys(data.packages).map(key => ({ id: idOfKey(key), type: 'package' })),
+    ].map(({ id, type }) => {
+      return {
+        id,
+        type,
+        name: id === '.' ? '&lt;main&gt;' : id,
+        val: getValue(id) ** 2,
+      }
+    })
+    return { nodes, links }
+  }
+
+  function resolveNpmLockfile(data) {
+    const nodes = []
+    const links = []
+    // TODO
+    return { nodes, links }
+  }
+
+  function render(element, nodes, links) {
+    const forceGraph = ForceGraph3D()
+    forceGraph(element)
+      .showNavInfo(false)
+      .graphData({ nodes, links })
+      .nodeAutoColorBy('type')
+  }
+
+  const selector = document.querySelector('#selector')
+  const container = document.querySelector('#container')
+
+  selector.addEventListener('click', async () => {
+    try {
+      const lockfile = await selectLockfile()
+      const { nodes, links } = lockfile.type === 'pnpm'
+        ? resolvePnpmLockfile(lockfile.data)
+        : resolveNpmLockfile(lockfile.data)
+      render(container, nodes, links)
+    } catch (err) {
+      console.error(err)
+      if (err.name !== 'AbortError') {
+        alert(err.message)
+      }
+    }
+  })
+  </script>
+</body>
+</html>

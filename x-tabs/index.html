@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XTabs</title>
+  <style>
+    body {
+      background-color: #f6f8fa;
+    }
+    .card {
+      position: fixed;
+      width: 25vw;
+      height: 25vh;
+      border-radius: 6px;
+      background-color: white;
+      box-shadow: 0px 4px 6px -1px rgb(0 0 0 / 10%);
+    }
+  </style>
+</head>
+<body>
+  <div v-cloak id="app">
+    <div
+      ref="card"
+      class="card"
+      :style="style"
+      draggable="true"
+      @dragstart.prevent="start"
+    ></div>
+  </div>
+  <script type="importmap">
+  {
+    "imports": {
+      "@vueuse/core": "https://cdn.jsdelivr.net/npm/@vueuse/core/+esm",
+      "@vueuse/shared": "https://cdn.jsdelivr.net/npm/@vueuse/shared",
+      "vue": "https://cdn.jsdelivr.net/npm/vue/+esm",
+      "vue-demi": "https://cdn.jsdelivr.net/npm/vue-demi/+esm"
+    }
+  }
+  </script>
+  <script type="module">
+  import { StorageSerializers, useEventListener, useStorage } from '@vueuse/core'
+  import { computed, createApp, onMounted, ref, watchEffect } from 'vue'
+
+  createApp({
+    setup() {
+      const storage = useStorage('x-tabs#card', null, localStorage, {
+        listenToStorageChanges: true,
+        serializer: StorageSerializers.object,
+      })
+      const card = ref()
+
+      const windowOffsetLoaded = ref(false)
+      const windowOffsetX = ref(0)
+      const windowOffsetY = ref(0)
+
+      useEventListener(window, 'mouseover', event => {
+        windowOffsetLoaded.value = true
+        windowOffsetX.value = event.screenX - event.clientX
+        windowOffsetY.value = event.screenY - event.clientY
+      })
+
+      const style = computed(() => {
+        if (!storage.value || !windowOffsetLoaded.value) return undefined
+        return {
+          width: `${storage.value.width}px`,
+          height: `${storage.value.height}px`,
+          left: `${storage.value.screenX - storage.value.offsetX - windowOffsetX.value}px`,
+          top: `${storage.value.screenY - storage.value.offsetY - windowOffsetY.value}px`,
+        }
+      })
+
+      watchEffect(() => {
+        if (!storage.value && card.value && windowOffsetLoaded.value) {
+          storage.value = {
+            width: card.value.clientWidth,
+            height: card.value.clientHeight,
+            screenX: windowOffsetX.value + card.value.offsetLeft,
+            screenY: windowOffsetY.value + card.value.offsetTop,
+            offsetX: 0,
+            offsetY: 0,
+          }
+        }
+      })
+
+      function update(event, sticky) {
+        const { screenX, screenY, clientX, clientY } = event
+        const rect = event.target.getBoundingClientRect()
+        storage.value = {
+          ...storage.value,
+          screenX,
+          screenY,
+          ...(sticky ? undefined : {
+            offsetX: clientX - rect.left,
+            offsetY: clientY - rect.top,
+          }),
+        }
+      }
+
+      function start(event) {
+        update(event)
+        function move(currentEvent) {
+          update(currentEvent, true)
+        }
+        function cancel() {
+          window.removeEventListener('mousemove', move)
+          window.removeEventListener('mouseup', stop)
+        }
+        window.addEventListener('mousemove', move, { passive: true })
+        window.addEventListener('mouseup', cancel)
+      }
+
+      return {
+        card,
+        style,
+        start,
+      }
+    },
+  }).mount('#app')
+  </script>
+</body>
+</html>
