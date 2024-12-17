@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&display=swap" rel="stylesheet">
+  <title>Art Gallery</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "fast-average-color": "https://cdn.jsdelivr.net/npm/fast-average-color@9.4.0/+esm",
+        "qrcode": "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm"
+      }
+    }
+  </script>
+  <style>
+    body {
+      margin: 0;
+    }
+    .wall {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .wall::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      filter: url(#surface);
+      will-change: filter;
+    }
+    .wall::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse at 100% 0%,
+        rgb(255 255 255 / 25%),
+        rgb(255 255 255 / 18%) 50%,
+        rgb(255 255 255 / 15%) 70%,
+        rgb(0 0 0 / 10%)
+      );
+    }
+    .vision {
+      display: flex;
+      align-items: flex-end;
+      gap: 48px;
+      perspective: 550px;
+      z-index: 1;
+    }
+    .picture-frame {
+      display: flex;
+      border: 16px solid black;
+      background: rgb(255 255 255 / 95%);
+      padding: 24px;
+      box-shadow:
+        -55px 40px 30px 0 rgb(0 0 0 / 10%),
+        -27px 25px 35px -5px rgb(0 0 0 / 20%),
+        -10px 10px 15px 5px rgb(0 0 0 / 10%),
+        -12px 12px 10px 0 rgb(0 0 0 / 20%),
+        -7px 7px 8px 0 rgb(0 0 0 / 10%),
+        -5px 5px 5px 0 rgb(0 0 0 / 20%),
+        -2px 2px 3px 0 rgb(0 0 0 / 30%);
+      filter: drop-shadow(-20px 20px 15px rgb(0 0 0 / 65%));
+    }
+    #picture {
+      max-width: calc(100vw - 120px);
+      max-height: calc(100vh - 120px);
+      display: block;
+    }
+    #next-picture {
+      display: none;
+    }
+    #sign {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      width: 240px;
+      margin-bottom: 48px;
+      padding: 18px;
+      font-family: 'Bodoni Moda', serif;
+      line-height: 1.4;
+      background: rgb(255 255 255 / 95%);
+      filter: drop-shadow(-3px 1px 1px rgb(0 0 0 / 55%));
+    }
+    #creator {
+      font-size: 12px;
+    }
+    #title {
+      font-size: 18px;
+      font-style: italic;
+    }
+    #link {
+      display: flex;
+      align-self: flex-end;
+    }
+    #qrcode {
+      margin-top: 12px;
+      width: 48px;
+      height: 48px;
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0">
+    <filter id="surface">
+      <feTurbulence type="fractalNoise" baseFrequency="0.95 0.95" numOctaves="80" result="noise" />
+      <feDiffuseLighting id="lighting" in="noise" lighting-color="#FFFFFF" surfaceScale="0.8" result="grind">
+        <feDistantLight azimuth="500" elevation="50" />
+      </feDiffuseLighting>
+      <feGaussianBlur in="grind" stdDeviation="0.5"/>
+    </filter>
+  </svg>
+  <div class="wall">
+    <div class="vision">
+      <div class="picture-frame">
+        <img id="picture" crossorigin>
+        <img id="next-picture" crossorigin>
+      </div>
+      <div id="sign">
+        <span id="creator">Anonymous</span>
+        <span id="title">Untitled</span>
+        <a id="link" target="_blank">
+          <img id="qrcode">
+        </a>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { FastAverageColor } from 'fast-average-color'
+    import QRCode from 'qrcode'
+
+    async function _load() {
+      const response = await fetch('https://www.gstatic.com/culturalinstitute/tabext/imax_2_2.json')
+      const data = await response.json()
+      return data
+    }
+    function load() {
+      if (load.cache) return load.cache
+      const awaitable = _load().catch(err => {
+        load.cache = undefined
+        throw err
+      })
+      load.cache = awaitable
+      return awaitable
+    }
+
+    function extract(art) {
+      return {
+        picture: art.image,
+        creator: art.creator,
+        title: art.title,
+        link: art.attribution_link ? `https://artsandculture.google.com/${art.attribution_link}` : art.image,
+      }
+    }
+
+    const builtinArtworks = [
+      {
+        picture: './images/mushrooms.jpg',
+        creator: 'Celeste',
+        title: 'Mushrooms',
+      },
+      {
+        picture: './images/a-bunny.jpg',
+        creator: 'Celeste',
+        title: 'A Bunny',
+      },
+    ]
+
+    async function roll() {
+      if (Math.random() < 0.1) {
+        return builtinArtworks[Math.floor(Math.random() * builtinArtworks.length)]
+      }
+      const data = await load()
+      return extract(data[Math.floor(Math.random() * data.length)])
+    }
+
+    const lighting = document.getElementById('lighting')
+    const picture = document.getElementById('picture')
+    const sign = document.getElementById('sign')
+    const creator = document.getElementById('creator')
+    const title = document.getElementById('title')
+    const link = document.getElementById('link')
+    const qrcode = document.getElementById('qrcode')
+    const nextPicture = document.getElementById('next-picture')
+    const nextCreator = document.getElementById('next-creator')
+    const nextTitle = document.getElementById('next-title')
+    const nextLink = document.getElementById('next-link')
+
+    const placeholder = `
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="360">
+  <rect width="512" height="360" fill="#b0ada7" />
+</svg>
+`
+    picture.src = `data:image/svg+xml,${encodeURIComponent(placeholder)}`
+
+    const fac = new FastAverageColor()
+
+    let nextArt
+    async function preload() {
+      nextArt = await roll()
+    }
+
+    async function toggle() {
+      if (nextArt) {
+        picture.src = nextArt.picture
+        creator.textContent = nextArt.creator
+        title.textContent = nextArt.title
+        link.href = nextArt.link
+      } else {
+        const art = await roll()
+        picture.src = art.picture
+        creator.textContent = art.creator
+        title.textContent = art.title
+        link.href = art.link
+      }
+      fac.getColorAsync(picture).then(color => {
+        lighting.style.setProperty('lighting-color', color.hex)
+      })
+      QRCode.toDataURL(link.href, {
+        margin: 0,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF00'
+        },
+      }).then(url => {
+        qrcode.src = url
+      })
+      preload()
+    }
+
+    window.addEventListener('load', toggle)
+    document.body.addEventListener('click', toggle)
+    sign.addEventListener('click', event => {
+      event.stopPropagation()
+    })
+  </script>
+</body>
+</html>
