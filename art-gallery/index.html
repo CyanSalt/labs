@@ -57,7 +57,7 @@
     .picture-frame {
       display: flex;
       border: 16px solid black;
-      background: rgb(255 255 255 / 95%);
+      background: #e3e3e3;
       padding: 24px;
       box-shadow:
         -55px 40px 30px 0 rgb(0 0 0 / 10%),
@@ -66,7 +66,8 @@
         -12px 12px 10px 0 rgb(0 0 0 / 20%),
         -7px 7px 8px 0 rgb(0 0 0 / 10%),
         -5px 5px 5px 0 rgb(0 0 0 / 20%),
-        -2px 2px 3px 0 rgb(0 0 0 / 30%);
+        -2px 2px 3px 0 rgb(0 0 0 / 30%),
+        -2px 2px 6px 3px rgb(0 0 0 / 30%) inset;
       filter: drop-shadow(-20px 20px 15px rgb(0 0 0 / 65%));
     }
     #picture {
@@ -87,7 +88,7 @@
       padding: 18px;
       font-family: 'Bodoni Moda', serif;
       line-height: 1.4;
-      background: rgb(255 255 255 / 95%);
+      background: #e3e3e3;
       filter: drop-shadow(-3px 1px 1px rgb(0 0 0 / 55%));
     }
     #creator {
@@ -116,11 +117,11 @@
 <body>
   <svg width="0" height="0">
     <filter id="surface">
-      <feTurbulence type="fractalNoise" baseFrequency="0.95 0.95" numOctaves="80" result="noise" />
-      <feDiffuseLighting id="lighting" in="noise" lighting-color="#FFFFFF" surfaceScale="0.8" result="grind">
+      <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="80" result="noise" />
+      <feDiffuseLighting id="lighting" in="noise" lighting-color="#FFFFFF" surfaceScale="1.4" result="grind">
         <feDistantLight azimuth="500" elevation="50" />
       </feDiffuseLighting>
-      <feGaussianBlur in="grind" stdDeviation="0.5"/>
+      <feGaussianBlur in="grind" stdDeviation="0.6"/>
     </filter>
   </svg>
   <div class="wall">
