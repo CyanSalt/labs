@@ -17,6 +17,9 @@
     }
   </script>
   <style>
+    ::view-transition-group(*) {
+      animation-duration: 0.25s;
+    }
     body {
       margin: 0;
     }
@@ -51,7 +54,6 @@
       display: flex;
       align-items: flex-end;
       gap: 48px;
-      perspective: 550px;
       z-index: 1;
     }
     .picture-frame {
@@ -69,6 +71,7 @@
         -2px 2px 3px 0 rgb(0 0 0 / 30%),
         -2px 2px 6px 3px rgb(0 0 0 / 30%) inset;
       filter: drop-shadow(-20px 20px 15px rgb(0 0 0 / 65%));
+      view-transition-name: none;
     }
     #picture {
       max-width: calc(80vw - 80px);
@@ -90,6 +93,7 @@
       line-height: 1.4;
       background: #e3e3e3;
       filter: drop-shadow(-3px 1px 1px rgb(0 0 0 / 55%));
+      view-transition-name: sign;
     }
     #creator {
       font-size: 10px;
@@ -196,9 +200,6 @@
     const link = document.getElementById('link')
     const qrcode = document.getElementById('qrcode')
     const nextPicture = document.getElementById('next-picture')
-    const nextCreator = document.getElementById('next-creator')
-    const nextTitle = document.getElementById('next-title')
-    const nextLink = document.getElementById('next-link')
 
     const placeholder = `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="360">
@@ -211,24 +212,25 @@
 
     let nextArt
     async function preload() {
-      nextArt = await roll()
+      const art = await roll()
+      nextArt = art
+      nextPicture.src = nextArt.picture
     }
 
     async function toggle() {
-      if (nextArt) {
-        picture.src = nextArt.picture
-        creator.textContent = nextArt.creator
-        title.textContent = nextArt.title
-        link.href = nextArt.link
-      } else {
-        const art = await roll()
+      preload()
+      const art = nextArt ?? await roll()
+      const transition = document.startViewTransition(() => {
         picture.src = art.picture
         creator.textContent = art.creator
         title.textContent = art.title
         link.href = art.link
-      }
+      })
+      await transition.updateCallbackDone
       fac.getColorAsync(picture).then(color => {
         lighting.style.setProperty('lighting-color', color.hex)
+      }, () => {
+        lighting.style.setProperty('lighting-color', '#FFFFFF')
       })
       QRCode.toDataURL(link.href, {
         margin: 0,
@@ -238,8 +240,9 @@
         },
       }).then(url => {
         qrcode.src = url
+      }, () => {
+        qrcode.src = ''
       })
-      preload()
     }
 
     window.addEventListener('load', toggle)
