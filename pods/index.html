@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+项目背景：创建拟真AirPods充电盒效果
+
+[当前状态]
+已完成所有主要功能开发，包括：
+1. 基础结构搭建
+2. 外部阴影效果优化（双层阴影，60px/10px垂直偏移）
+3. 内部阴影效果（左右两侧25%宽度，中央60%宽度）
+4. 开合线及凹槽细节实现
+5. 指示灯动画效果
+
+[最新调整记录]
+1. 外部阴影垂直偏移增大：
+   - 第一层：60px模糊/0.2透明度
+   - 第二层：10px模糊/0.3透明度
+2. 内部阴影参数：
+   - 左右两侧：0.09953125透明度
+   - 中央区域：0.11375透明度
+
+[代码结构]
+1. .case - 充电盒主体
+2. .left-shadow - 左侧内部阴影
+3. .right-shadow - 右侧内部阴影
+4. .center-shadow - 中央内部阴影
+5. .hinge-line - 开合线
+6. .hinge-notch - 中央凹槽
+7. .indicator-light - 指示灯
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pods</title>
+  <style>
+    html {
+      background-color: #f8f8f8;
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      height: 100%;
+    }
+    .case {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 350px;
+      height: 305px;
+      background-color: white;
+      border-radius: 105px;
+      box-shadow:
+        0 60px 120px rgba(0,0,0,0.2),
+        0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .left-shadow, .right-shadow, .center-shadow {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      pointer-events: none;
+      border-radius: 105px;
+    }
+    .left-shadow {
+      left: 0;
+      width: 25%;
+      background: radial-gradient(ellipse at left 60%, rgba(0,0,0,0.09953125) 0%, transparent 70%);
+      filter: blur(3px);
+    }
+    .right-shadow {
+      right: 0;
+      width: 25%;
+      background: radial-gradient(ellipse at right 60%, rgba(0,0,0,0.09953125) 0%, transparent 70%);
+      filter: blur(3px);
+    }
+    .center-shadow {
+      left: 20%;
+      right: 20%;
+      background: radial-gradient(ellipse at center 65%,
+        rgba(0,0,0,0.11375) 0%,
+        transparent 70%);
+      filter: blur(3px);
+    }
+    .hinge-line {
+      position: absolute;
+      top: 32%;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        white 0%,
+        #e0e0e0 20%,
+        #e0e0e0 80%,
+        white 100%
+      );
+      box-shadow:
+        0 1px 1px rgba(255,255,255,0.8),
+        0 -1px 1px rgba(0,0,0,0.05);
+    }
+    .hinge-notch {
+      position: absolute;
+      top: calc(32% - 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 175px;
+      height: 24px;
+      background: linear-gradient(to bottom,
+        rgba(0,0,0,0.05) 0%,
+        rgba(0,0,0,0.025) 50%,
+        rgba(255,255,255,0.3) 70%,
+        rgba(255,255,255,0.8) 100%);
+      border-radius: 12px;
+      box-shadow:
+        inset 0 3px 6px rgba(0,0,0,0.08),
+        inset 0 -3px 6px rgba(255,255,255,0.1);
+    }
+    .indicator-light {
+      position: absolute;
+      top: calc(32% + 36px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 9px;
+      height: 9px;
+      background-color: rgb(40, 205, 65);
+      border-radius: 50%;
+      box-shadow:
+        0 0 15px rgba(40, 205, 65, 0.8),
+        0 0 30px rgba(40, 205, 65, 0.6);
+      filter: blur(2px);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+  </style>
+</head>
+<body>
+  <div class="case">
+    <div class="left-shadow"></div>
+    <div class="right-shadow"></div>
+    <div class="center-shadow"></div>
+    <div class="hinge-notch"></div>
+    <div class="hinge-line"></div>
+    <div class="indicator-light"></div>
+  </div>
+</body>
+</html>
