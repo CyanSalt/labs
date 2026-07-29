@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feishu Pixel Art</title>
+</head>
+<body>
+  <fieldset>
+    <legend>Pixel Size</legend>
+    <input id="size" type="number" value="24">
+  </fieldset>
+  <fieldset>
+    <legend>Image Resolution</legend>
+    <input id="resolution" type="number" value="24">
+  </fieldset>
+  <fieldset>
+    <legend>Select Image</legend>
+    <input id="file" type="file">
+  </fieldset>
+  <p id="output"></p>
+  <script type="module">
+    const output = document.querySelector('#output')
+    function setOutput(value) {
+      output.textContent = value
+    }
+    function loadImage(url) {
+      const image = new Image()
+      image.src = url
+      return new Promise((resolve, reject) => {
+        if (image.complete) {
+          resolve(image)
+          return
+        }
+        image.addEventListener('load', () => {
+          resolve(image)
+        })
+        image.addEventListener('error', (event) => {
+          reject(event.error ?? new Error(event.message))
+        })
+      })
+    }
+    function generateSheet(table, size) {
+      return `
+        <byte-sheet-html-origin data-version="4" data-is-embed="false" data-grid-line-hidden="false">
+          <table>
+            <colgroup>${table[0].map(col => `<col width="${size}">`).join('')}</colgroup>
+            <tbody>${table.map(row => `
+              <tr height="${size}">${
+                row.map(col => `<td style="background-color: rgb(${col.r}, ${col.g}, ${col.b});"></td>`).join('')
+              }</tr>
+            `).join('')}</tbody>
+          </table>
+        </byte-sheet-html-origin>
+      `
+    }
+    async function loadFile(file, size, resolution) {
+      setOutput('Start loading image...')
+      const url = URL.createObjectURL(file)
+      const image = await loadImage(url)
+      const width = image.width < image.height ? resolution : resolution * image.width / image.height
+      const height = image.width < image.height ? resolution * image.height / image.width : resolution
+      const canvas = new OffscreenCanvas(width, height)
+      const context = canvas.getContext('2d')
+      context.drawImage(image, 0, 0, width, height)
+      const { data } = context.getImageData(0, 0, width, height)
+      let table = []
+      let colors = []
+      for (let i = 0; i < data.length; i += 4) {
+        colors.push({
+          r: data[i + 3] ? data[i] : 255,
+          g: data[i + 3] ? data[i + 1] : 255,
+          b: data[i + 3] ? data[i + 2] : 255,
+          a: data[i + 3] / 255,
+        })
+        if (colors.length === width) {
+          table.push(colors)
+          colors = []
+        }
+      }
+      const sheet = generateSheet(table, size)
+      console.log(sheet)
+      const permissionQuery = await navigator.permissions.query({ name: 'clipboard-write' })
+      if (permissionQuery.state === 'granted' || permissionQuery.state === 'prompt') {
+        const item = new ClipboardItem({
+          'text/html': new Blob([sheet], { type: 'text/html' })
+        })
+        await navigator.clipboard.write([item])
+        setOutput('Done.')
+      } else {
+        setOutput('Permission denied.')
+      }
+    }
+
+    const sizeInput = document.querySelector('#size')
+    const resolutionInput = document.querySelector('#resolution')
+    const fileInput = document.querySelector('#file')
+    fileInput.addEventListener('change', event => {
+      const file = event.target.files?.[0]
+      if (file) {
+        loadFile(file, sizeInput.value, resolutionInput.value)
+      }
+      event.target.value = ''
+    })
+  </script>
+</body>
+</html>
